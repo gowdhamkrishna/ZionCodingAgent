@@ -1,0 +1,4 @@
+
+# Zion Agent backups
+.zion_backups/
+.env

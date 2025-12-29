@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: zion-agent
+Version: 1.0.0
+Summary: Zion AI Agent - A local, repo-aware AI coding assistant
+Author: Gowdham
+Requires-Python: >=3.8
+Requires-Dist: ollama
+Requires-Dist: pydantic
+Requires-Dist: rich
+Requires-Dist: cerebras_cloud_sdk
+Requires-Dist: questionary
+Requires-Dist: python-dotenv
+Dynamic: author
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

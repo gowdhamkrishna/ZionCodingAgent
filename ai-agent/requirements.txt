@@ -1,0 +1,14 @@
+ollama
+pydantic
+rich
+google-generativeai
+python-dotenv
+questionary
+prompt_toolkit
+
+# Learning System Dependencies
+sentence-transformers>=5.0.0
+scikit-learn>=1.8.0
+hdbscan>=0.8.33
+numpy>=2.0.0
+cerebras_cloud_sdk

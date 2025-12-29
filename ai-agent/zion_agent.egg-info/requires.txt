@@ -1,0 +1,6 @@
+ollama
+pydantic
+rich
+cerebras_cloud_sdk
+questionary
+python-dotenv
