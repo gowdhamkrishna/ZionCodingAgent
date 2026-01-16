@@ -6,7 +6,7 @@ import subprocess
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.orchestrator import AgentOrchestrator
-from core.version_manager import VersionManager
+from core.git_version_manager import GitVersionManager as VersionManager
 from tools.filesystem_tools import set_version_manager
 from config import config
 from rich.console import Console
@@ -352,6 +352,11 @@ def main():
                 padding=(0, 2)
             ))
             console.print()
+            
+            # Prompt for backtrack
+            if questionary.confirm("Backtrack to last state (undo task)?", default=False).ask():
+                version_manager.undo_task()
+                console.print()
             
         except Exception as e:
             console.print(f"\n[bold red]  ⚠️  Error: {escape(str(e))}[/bold red]\n")

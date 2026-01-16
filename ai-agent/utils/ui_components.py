@@ -17,70 +17,98 @@ from rich.markdown import Markdown
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.columns import Columns
 from rich.rule import Rule
+from utils.style_utils import gradient_text, cyber_panel, make_header_text
+from rich.layout import Layout
+from rich.align import Align
 from rich import box
 
 console = Console()
 
 # Color scheme
+# Color scheme
+# Premium Cyber-Neon Color Scheme
 COLORS = {
-    "primary": "cyan",
-    "secondary": "magenta",
-    "success": "green",
-    "warning": "yellow",
-    "error": "red",
-    "muted": "dim white",
-    "accent": "bright_blue",
+    "primary": "bright_cyan",
+    "secondary": "bright_magenta",
+    "success": "spring_green1",
+    "warning": "gold1",
+    "error": "red1",
+    "muted": "bright_black",
+    "text": "white",
+    "highlight": "deep_sky_blue1",
+    "border": "cyan",
+    "panel_bg": "black",
 }
 
 
 def show_welcome_banner() -> None:
-    """Display premium animated welcome banner."""
+    """Display modern, minimal welcome banner."""
     
-    # Gradient-style banner
-    banner = """
-[bold bright_cyan]╔═══════════════════════════════════════════════════════════════╗[/]
-[bold bright_cyan]║[/] [bold bright_magenta]███████╗[/][bold cyan]██╗[/] [bold bright_magenta]██████╗[/] [bold cyan]███╗   ██╗[/]                            [bold bright_cyan]║[/]
-[bold bright_cyan]║[/] [bold magenta]╚══███╔╝[/][bold cyan]██║[/][bold magenta]██╔═══██╗[/][bold cyan]████╗  ██║[/]                            [bold bright_cyan]║[/]
-[bold bright_cyan]║[/]   [bold bright_magenta]███╔╝[/] [bold cyan]██║[/][bold bright_magenta]██║   ██║[/][bold cyan]██╔██╗ ██║[/]    [bold white]AI Coding Agent[/]          [bold bright_cyan]║[/]
-[bold bright_cyan]║[/]  [bold magenta]███╔╝[/]  [bold cyan]██║[/][bold magenta]██║   ██║[/][bold cyan]██║╚██╗██║[/]    [dim]v2.0 • Local • Fast[/]       [bold bright_cyan]║[/]
-[bold bright_cyan]║[/] [bold bright_magenta]███████╗[/][bold cyan]██║[/][bold bright_magenta]╚██████╔╝[/][bold cyan]██║ ╚████║[/]                            [bold bright_cyan]║[/]
-[bold bright_cyan]║[/] [bold magenta]╚══════╝[/][bold cyan]╚═╝[/] [bold magenta]╚═════╝[/] [bold cyan]╚═╝  ╚═══╝[/]                            [bold bright_cyan]║[/]
-[bold bright_cyan]╚═══════════════════════════════════════════════════════════════╝[/]"""
+    console.print()
+    grid = Table.grid(expand=True)
+    grid.add_column(justify="center")
     
-    console.print(banner)
-
-
-def show_agent_header(provider: str = "ollama", model_name: str = "qwen2.5-coder:7b", base_dir: str = None) -> None:
-    """Display enhanced system status header."""
+    # Premium High-Impact ASCII Art
+    ascii_art = r"""
+__________.___ ________    _______
+\____    /|   |\_____  \   \      \
+  /     / |   | /   |   \  /   |   \
+ /     /_ |   |/    |    \/    |    \
+/_______ \|___|\_______  /\____|__  /
+        \/             \/         \/
+    """
     
-    # Get system info
-    now = datetime.now().strftime("%H:%M")
-    dir_name = os.path.basename(base_dir or os.getcwd())
+    styled_art = gradient_text(ascii_art.strip(), "bright_cyan", "bright_magenta")
     
-    # Create a grid for the header
-    grid = Table.grid(expand=True, padding=(0, 2))
-    grid.add_column(justify="left", ratio=1)
-    grid.add_column(justify="right", ratio=1)
-    
-    # Left side - Model info
-    left = Text()
-    left.append("⚡ ", style="bright_yellow")
-    left.append(f"[{provider.upper()}] ", style="bold magenta")
-    left.append("Model: ", style="dim")
-    left.append(model_name, style="bold cyan")
-    
-    # Right side - Workspace
-    right = Text()
-    right.append("📁 ", style="bright_blue")
-    right.append(dir_name, style="bold white")
-    right.append(f" • {now}", style="dim")
-    
-    grid.add_row(left, right)
+    grid.add_row(styled_art)
+    grid.add_row(Text("AI CODING AGENT v2.0", style="bold white tracking"))
     
     console.print(Panel(
         grid,
         border_style="bright_blue",
-        box=box.DOUBLE_EDGE,
+        box=box.HEAVY,
+        padding=(1, 4),
+        title="[ SYSTEM ONLINE ]",
+        title_align="center"
+    ))
+    console.print()
+
+
+def show_agent_header(provider: str = "ollama", model_name: str = "qwen2.5-coder:7b", base_dir: str = None) -> None:
+    """Display enhanced dashboard-style header."""
+    
+    # Get system info
+    dir_name = os.path.basename(base_dir or os.getcwd())
+    
+    # Create a single line status bar
+    status_bar = Table.grid(expand=True, padding=(0, 2))
+    status_bar.add_column(justify="left", ratio=1)
+    status_bar.add_column(justify="center", ratio=2)
+    status_bar.add_column(justify="right", ratio=1)
+    
+    # Left: Identity
+    identity = Text()
+    identity.append(" ◈ ", style="bright_green blink")  # Changed icon
+    identity.append(" ZION-OS ", style="bold white")
+    
+    # Center: Context
+    context = Text()
+    context.append("[ ", style="dim white")
+    context.append(f"{dir_name.upper()}", style="bold bright_cyan")
+    context.append(" ]", style="dim white")
+    
+    # Right: Telemetry
+    telemetry = Text()
+    telemetry.append(f"{provider.upper()}", style="bright_magenta")
+    telemetry.append(" :: ", style="dim")
+    telemetry.append(model_name, style="cyan")
+    
+    status_bar.add_row(identity, context, telemetry)
+    
+    console.print(Panel(
+        status_bar,
+        border_style="bright_cyan",  # Changed to bright_cyan
+        box=box.HEAVY_EDGE,           # Changed to HEAVY_EDGE
         padding=(0, 1),
     ))
 
@@ -151,7 +179,7 @@ def show_code_preview(code: str, file_path: str, language: str = None) -> None:
         title=f"[bold bright_cyan]📄 {filename}[/]",
         subtitle=f"[dim]{language}[/]",
         border_style="bright_blue",
-        box=box.ROUNDED,
+        box=box.HEAVY_EDGE,
         padding=(0, 1),
     ))
 
@@ -209,7 +237,7 @@ def show_file_diff(file_path: str, old_content: str, new_content: str) -> None:
             diff_text,
             title=f"[bold yellow]📝 Changes: {os.path.basename(file_path)}[/]",
             border_style="yellow",
-            box=box.ROUNDED,
+            box=box.DOUBLE,
             padding=(0, 1),
         ))
 
@@ -257,7 +285,7 @@ def show_command_output(command: str, output: str, is_error: bool = False) -> No
         output_text,
         title=f"[bold]{icon} {display_cmd}[/]",
         border_style=border,
-        box=box.ROUNDED,
+        box=box.HEAVY_EDGE,
         padding=(0, 1),
     ))
 
@@ -268,7 +296,7 @@ def show_agent_response(message: str) -> None:
         Markdown(message),
         title="[bold bright_magenta]🤖 Zion[/]",
         border_style="bright_magenta",
-        box=box.ROUNDED,
+        box=box.HEAVY_EDGE,
         padding=(0, 1),
     ))
 

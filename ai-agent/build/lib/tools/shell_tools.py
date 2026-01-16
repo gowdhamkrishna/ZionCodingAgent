@@ -1,6 +1,9 @@
 import subprocess
 import os
+import sys
 import re
+import time
+import signal
 from .base import BaseTool
 from typing import Dict, Any
 from rich.console import Console
@@ -20,114 +23,121 @@ class RunCommandTool(BaseTool):
     def __init__(self):
         super().__init__("run_command", "Run a shell command")
 
-    def execute(self, command: str, timeout: int = 120, interactive: bool = False) -> str:
+    def execute(self, command: str, timeout: int = 300, interactive: bool = True) -> str:
         """
-        Execute a shell command with timeout.
+        Execute a shell command with PTY for live interaction.
         
         Args:
             command: The command to run
-            timeout: Max seconds to wait (default 120)
-            interactive: If True, run in interactive mode for user input
+            timeout: Max seconds to wait (default 300)
+            interactive: Always True now, as we use PTY
         """
-        # Check if this is a scaffolding command that needs interaction
-        scaffolding_commands = ["create-next-app", "create-react-app", "create-vite", "npm init", "npx create"]
-        is_scaffolding = any(cmd in command for cmd in scaffolding_commands)
-        
-        if is_scaffolding or interactive:
-            return self._run_interactive(command, timeout)
-        else:
-            return self._run_standard(command, timeout)
+        return self._run_pty(command, timeout)
     
-    def _run_interactive(self, command: str, timeout: int) -> str:
-        """Run command interactively using subprocess with live output."""
+    def _run_pty(self, command: str, timeout: int) -> str:
+        """Run command in a pseudo-terminal to support interaction and colors."""
+        import pty
+        import select
+        import termios
+        import tty
+        import signal
+        import time
+        from rich.live import Live
+        
         console.print(Panel(
-            f"[bold cyan]Running:[/bold cyan] {escape(command)}\n\n"
-            "[dim]This command may ask for input. Respond in terminal.[/dim]\n"
-            "[dim]Press Ctrl+C to cancel.[/dim]",
-            title="[bold green]Interactive Mode[/bold green]",
+            f"[bold cyan]Running:[/bold cyan] {escape(command)}\n"
+            "[dim]Interact directly below. Press Ctrl+C to send SIGINT to process.[/dim]",
+            title="[bold green]Live Terminal[/bold green]",
             border_style="green"
         ))
+
+        # Create PTY
+        master_fd, slave_fd = pty.openpty()
         
         try:
-            # Use subprocess with live output
+            # Start process connected to the slave PTY
             process = subprocess.Popen(
                 command,
                 shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                stdin=subprocess.PIPE,
+                stdin=slave_fd,
+                stdout=slave_fd,
+                stderr=slave_fd,
                 cwd=os.getcwd(),
-                text=True,
-                bufsize=1,
-                env={**os.environ, "TERM": "dumb", "CI": "false"}  # dumb term for cleaner output
+                env={**os.environ, "TERM": "xterm-256color"},
+                preexec_fn=os.setsid  # Create new session ID
             )
+            os.close(slave_fd)  # Close slave in parent
             
-            output_lines = []
+            # Buffers
+            captured_output = []
+            start_time = time.time()
+            
+            # Save original TTY settings
+            old_tty_settings = None
             try:
-                for line in iter(process.stdout.readline, ''):
-                    if not line:
-                        break
-                    clean_line = strip_ansi_codes(line.rstrip())
-                    if clean_line.strip():  # Only print non-empty lines
-                        console.print(f"[dim]{escape(clean_line)}[/dim]")
-                        output_lines.append(clean_line)
+                old_tty_settings = termios.tcgetattr(sys.stdin)
+                tty.setraw(sys.stdin.fileno())
+            except:
+                pass # Not a TTY (maybe running in pipe)
+
+            try:
+                while process.poll() is None:
+                    # check timeout
+                    if time.time() - start_time > timeout:
+                        process.terminate()
+                        return f"Error: Command timed out after {timeout}s"
+                        
+                    # Wait for data on master_fd (process output) or stdin (user input)
+                    r, w, x = select.select([master_fd, sys.stdin], [], [], 0.1)
                     
-                process.wait(timeout=timeout)
-                
-            except subprocess.TimeoutExpired:
-                process.kill()
-                return f"Command timed out after {timeout} seconds."
-            except KeyboardInterrupt:
-                process.terminate()
-                console.print("\n[yellow]Command cancelled[/yellow]")
-                return "Command cancelled by user"
+                    if master_fd in r:
+                        try:
+                            data = os.read(master_fd, 1024)
+                            if data:
+                                # Write to user's screen (raw)
+                                os.write(sys.stdout.fileno(), data)
+                                # Buffer for LLM (decode and clean later)
+                                captured_output.append(data)
+                        except OSError:
+                            break # Input/Output error (likely process closed)
+
+                    if sys.stdin in r:
+                        # User typed something
+                        input_data = os.read(sys.stdin.fileno(), 1024)
+                        if input_data:
+                            # Forward to process
+                            os.write(master_fd, input_data)
+                            
+            except Exception as e:
+                pass
+            finally:
+                # Restore TTY settings
+                if old_tty_settings:
+                    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty_settings)
             
+            # Get exit code
+            process.wait()
             return_code = process.returncode
-            output = "\n".join(output_lines)
+            
+            # Process captured output
+            full_output_bytes = b"".join(captured_output)
+            full_output_str = full_output_bytes.decode('utf-8', errors='replace')
+            clean_output = strip_ansi_codes(full_output_str)
             
             if return_code == 0:
-                console.print("[green]✓ Command completed[/green]")
+                console.print("\n[green]✓ Command completed[/green]")
             else:
-                console.print(f"[red]✗ Command failed (exit {return_code})[/red]")
+                console.print(f"\n[red]✗ Command failed (exit {return_code})[/red]")
             
-            return output if output else f"Exit code: {return_code}"
-            
-        except Exception as e:
-            return f"Error: {str(e)}"
-    
-    def _run_standard(self, command: str, timeout: int) -> str:
-        """Run command in standard non-interactive mode."""
-        try:
-            result = subprocess.run(
-                command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                cwd=os.getcwd(),
-                env={**os.environ, "CI": "true", "TERM": "dumb"}
-            )
-            
-            output = result.stdout
-            if result.stderr:
-                output += f"\nSTDERR:\n{result.stderr}"
-            
-            # Clean ANSI codes
-            output = strip_ansi_codes(output)
-            
-            if not output.strip():
-                if result.returncode == 0:
-                    return "Command completed successfully"
-                else:
-                    return f"Command failed with exit code {result.returncode}"
-            
-            return output
-            
-        except subprocess.TimeoutExpired:
-            return f"Error: Command timed out after {timeout} seconds."
-        except Exception as e:
-            return f"Error running command: {str(e)}"
+            return clean_output
 
+        except Exception as e:
+            return f"Error running PTY command: {str(e)}"
+        finally:
+            try:
+                os.close(master_fd)
+            except:
+                pass
     def get_parameters_schema(self) -> Dict[str, Any]:
         return {
             "type": "object",

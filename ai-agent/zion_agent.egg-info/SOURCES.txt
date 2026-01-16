@@ -2,13 +2,13 @@ config.py
 setup.py
 core/__init__.py
 core/context_manager.py
+core/git_version_manager.py
 core/learning_orchestrator.py
 core/learning_system.py
 core/llm_client.py
 core/memory.py
 core/orchestrator.py
 core/prompt_templates.py
-core/version_manager.py
 tools/__init__.py
 tools/base.py
 tools/context_tools.py
@@ -18,6 +18,7 @@ utils/__init__.py
 utils/approval_manager.py
 utils/logger.py
 utils/rich_display.py
+utils/style_utils.py
 utils/ui_components.py
 zion/__init__.py
 zion/cli.py
